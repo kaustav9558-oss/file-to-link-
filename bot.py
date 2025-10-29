@@ -1,4 +1,3 @@
-import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
@@ -18,10 +17,6 @@ BOT_TOKEN = "8284124222:AAEi9DoR5ygBa382Z7b6ho-xmNQjl2RCm3s"
 VERCEL_BASE_URL = "https://telegram-file-streamer-vercel.vercel.app"
 # The base URL for the Telegram Bot API file download (optional, but good for clarity)
 TELEGRAM_FILE_BASE_URL = "https://api.telegram.org/file/bot"
-
-# Check for required environment variables
-if not BOT_TOKEN:
-    logger.error("BOT_TOKEN environment variable not set. The bot will not run.")
 
 # --- Utility Functions ---
 
@@ -163,4 +158,4 @@ def main() -> None:
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
-    main()
+    main()    
