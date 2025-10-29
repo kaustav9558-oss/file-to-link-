@@ -1,6 +1,6 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 from urllib.parse import quote_plus
 
 # Set up logging
@@ -83,34 +83,24 @@ async def handle_file(update: Update, context) -> None:
     await message.reply_text("Processing file... Please wait.")
 
     try:
-        # 2. Get the file path from Telegram API
-        # get_file() returns a File object which contains the file_path
-        telegram_file = await context.bot.get_file(file_object.file_id)
+        # 2. Store file_id and file_name in callback data
+        file_id = file_object.file_id
         
-        if not telegram_file.file_path:
-            await message.reply_text("Could not retrieve file path from Telegram. Please try again.")
-            return
-
-        # 3. Construct the full Telegram file URL
-        telegram_file_url = get_telegram_file_url(telegram_file.file_path)
+        # 3. Send the links back to the user using callback data
+        # Callback data format: <action>|<file_id>|<file_name>
+        # We use short names for callback data to stay under the 64-byte limit
+        callback_stream = f"s|{file_id}|{file_name}"
+        callback_download = f"d|{file_id}|{file_name}"
         
-        if not telegram_file_url:
-            await message.reply_text("Bot token is not configured. Cannot generate links.")
-            return
-
-        # 4. Generate Vercel links
-        streaming_link, download_link = generate_vercel_links(file_name, telegram_file_url)
-
-        # 5. Send the links back to the user
         keyboard = [
-            [InlineKeyboardButton("🔗 Stream File", url=streaming_link)],
-            [InlineKeyboardButton("⬇️ Download File", url=download_link)]
+            [InlineKeyboardButton("🔗 Stream File", callback_data=callback_stream)],
+            [InlineKeyboardButton("⬇️ Download File", callback_data=callback_download)]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await message.reply_text(
-            f"✅ **Links Generated for:** `{file_name}`\n\n"
-            "Use the buttons below to stream or download your file.",
+            f"✅ **File Received:** `{file_name}`\n\n"
+            "Click a button to generate a fresh, non-expiring link.",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -120,6 +110,49 @@ async def handle_file(update: Update, context) -> None:
         await message.reply_text(
             "An error occurred while generating the links. "
             "Please check the bot token and ensure the file is accessible."
+        )
+
+async def handle_callback(update: Update, context) -> None:
+    """Handles the inline button clicks to generate a fresh link."""
+    query = update.callback_query
+    await query.answer("Generating fresh link...")
+
+    try:
+        # Parse callback data: <action>|<file_id>|<file_name>
+        data = query.data.split('|')
+        action = data[0] # 's' for stream, 'd' for download
+        file_id = data[1]
+        file_name = data[2]
+
+        # 1. Get a fresh file path from Telegram API
+        telegram_file = await context.bot.get_file(file_id)
+        
+        if not telegram_file.file_path:
+            await query.edit_message_text("Error: Could not retrieve file path from Telegram.")
+            return
+
+        # 2. Construct the full Telegram file URL
+        telegram_file_url = get_telegram_file_url(telegram_file.file_path)
+        
+        # 3. Generate Vercel links
+        streaming_link, download_link = generate_vercel_links(file_name, telegram_file_url)
+
+        # 4. Determine which link to send
+        final_link = streaming_link if action == 's' else download_link
+        link_type = "Stream" if action == 's' else "Download"
+
+        # 5. Send the final link to the user
+        await query.edit_message_text(
+            f"**{link_type} Link for:** `{file_name}`\n\n"
+            f"🔗 [Click here to {link_type.lower()}]({final_link})\n\n"
+            "This link is freshly generated and should work immediately.",
+            parse_mode='Markdown'
+        )
+
+    except Exception as e:
+        logger.error(f"Error processing callback query: {e}")
+        await query.edit_message_text(
+            "An error occurred while generating the link. Please try again."
         )
 
 async def error_handler(update: Update, context) -> None:
@@ -145,6 +178,9 @@ def main() -> None:
     file_filter = filters.ATTACHMENT | filters.VIDEO | filters.AUDIO
     application.add_handler(MessageHandler(file_filter & ~filters.COMMAND, handle_file))
 
+    # Callback handler for stream/download buttons
+    application.add_handler(CallbackQueryHandler(handle_callback))
+
     # Error handler
     application.add_error_handler(error_handler)
 
@@ -158,4 +194,4 @@ def main() -> None:
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
-    main()    
+    main()
