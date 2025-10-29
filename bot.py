@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # --- Configuration ---
 # Get your bot token from BotFather
-BOT_TOKEN = "8284124222:AAEi9DoR5ygBa382Z7b6ho-xmNQjl2RCm3s"
+BOT_TOKEN = "8284124222:AAFQgk5_9Tq2ou4aSQXTq0I_TQJyfW0gYog"
 # The base URL of the Vercel streaming service
 VERCEL_BASE_URL = "https://telegram-file-streamer-vercel.vercel.app"
 # The base URL for the Telegram Bot API file download (optional, but good for clarity)
