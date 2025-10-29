@@ -1,4 +1,1 @@
-python-telegram-bot==21.3
-python-dotenv
-# The python-dotenv package is included for local development to manage environment variables, 
-# although Render typically uses its own environment variable configuration.
+python-telegram-bot==21.5
